@@ -10,44 +10,70 @@ use Ratchet\MessageComponentInterface;
 
 class Chat implements MessageComponentInterface
 {
-    protected SplObjectStorage $clients;
+    private const JOIN = 'join';
+
+    private const MSG = 'msg';
+
+    private const PUSH = 'push';
+
+    protected array $clients;
 
     public function __construct()
     {
-        $this->clients = new SplObjectStorage;
+        $this->clients = [];
     }
 
-    public function onOpen(ConnectionInterface $conn)
+    public function onOpen(ConnectionInterface $conn): void
     {
-        $this->clients->attach($conn);
-
-        dump("New connection! ({$conn->resourceId})");
+        // check the limit of connection for example
+        // dump("New connection with ID ({$conn->resourceId})");
     }
 
     public function onMessage(ConnectionInterface $from, $msg)
     {
-        $numRecv = count($this->clients) - 1;
+        
+        $data = json_decode($msg, true);
 
-        dump(
-            sprintf(
-                'Connection %d sending message "%s" to %d other connection%s',
-                $from->resourceId,
-                $msg,
-                $numRecv, 
-                $numRecv == 1 ? '' : 's'
-            )
-        );
+        if (self::JOIN === $data['type']) {
+            // check if already exists
+            // the user should be validated
+    
+            foreach ($this->clients as $userId => $client) {
+                $pushMessage = [
+                    'user' => $data['user'],
+                    'type' => self::PUSH,
+                    'msg' => 'push user'
+                ];
+                $client->send(json_encode($pushMessage));
 
-        foreach ($this->clients as $client) {
-            if ($from !== $client) {
-                $client->send($msg);
+            }
+            $this->clients[$data['user']['id']] = $from;
+
+           /*  $alreadyExists = $this->clients[$data['user']['id']] ?? null;
+            if (null === $alreadyExists) {
+            } */
+        }
+
+        if (self::MSG === $data['type']) {
+            dd($this->clients, $data['to']);
+            foreach ($this->clients as $id => $client) {
+                if ($from !== $client && $id == $data['to']['id']) {
+                    dump('send message to ' . $data['user']['username']);
+                    $client->send(
+                        json_encode([
+                            'type' => self::MSG,
+                            'msg' => $msg,
+                            'user' => $data['user']
+                        ])
+                    );
+                }
             }
         }
     }
 
     public function onClose(ConnectionInterface $conn)
     {
-        $this->clients->detach($conn);
+        // $this->clients->detach($conn);
     }
 
     public function onError(ConnectionInterface $conn, \Exception $e)

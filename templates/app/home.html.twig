@@ -1,26 +1,5 @@
 {% extends 'base.html.twig' %}
 
 {% block body %}
-     <div>
-        <button id="send">Send Hello</button>
-    </div>
-    <script>
-        const conn = new WebSocket('ws://localhost:8080');
-        conn.onopen = function(e) {
-            console.log("Connection established!");
-            conn.send('Hello World')
-        };
-
-        conn.onmessage = function(e) {
-            console.log(e.data);
-        };
-
-        const btn = document.querySelector('#send');
-        if (btn) {
-            btn.onclick = e => {
-                e.preventDefault();
-                conn.send('Hello Guys')
-            }
-        }
-    </script>
+    <div id="root" data-user-id="{{ app.user.id }}" data-user-name="{{ app.user.name }}"></div>
 {% endblock %}
