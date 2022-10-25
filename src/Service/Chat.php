@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use SplObjectStorage;
 use Ratchet\ConnectionInterface;
 use Ratchet\MessageComponentInterface;
 
@@ -55,17 +54,10 @@ class Chat implements MessageComponentInterface
         }
 
         if (self::MSG === $data['type']) {
-            dd($this->clients, $data['to']);
             foreach ($this->clients as $id => $client) {
                 if ($from !== $client && $id == $data['to']['id']) {
                     dump('send message to ' . $data['user']['username']);
-                    $client->send(
-                        json_encode([
-                            'type' => self::MSG,
-                            'msg' => $msg,
-                            'user' => $data['user']
-                        ])
-                    );
+                    $client->send($msg);
                 }
             }
         }

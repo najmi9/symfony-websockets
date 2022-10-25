@@ -3,9 +3,9 @@ import { WS_URL } from '../config';
 import ConnectedUsers from "./components/ConnectedUsers";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import MsgForm from './components/MsgForm';
 import {user} from './user';
-import Msgs from "./components/Msgs";
+import Header from "./components/Header";
+import Conversation from "./components/Conversation";
 
 export default function App() {
     const conn = new WebSocket(WS_URL);
@@ -22,14 +22,18 @@ export default function App() {
 
     const [msgs, setMsgs] = useState([]);
 
-    const onStartConv = user => {
-        setState('CHAT')
-        setChatWith(user);
+    // const [convs, setConvs] = useState([]);
+
+    const onStartConv = (participant) => {
+        setState('CHAT');
+        setChatWith(participant);
+    }
+
+    const closeConv = e => {
+        setState('IDLE')  
     }
 
     const onMessage = (e) => {
-        e.preventDefault();
-
         const form = Object.fromEntries(new FormData(e.target));
 
         const sendMessage = {
@@ -37,11 +41,12 @@ export default function App() {
             to: chatWith,
             msg: form.msg,
             type: MSG,
-            me: true,
         };
-        setMsgs(msgs => [...msgs, sendMessage]);
-
         conn.send(JSON.stringify(sendMessage));
+
+        sendMessage.me = true;
+
+        setMsgs(msgs => [...msgs, sendMessage]);
     }
 
     useEffect(() => {
@@ -61,29 +66,25 @@ export default function App() {
 
             const isMsg = MSG === data.type;
             if (isMsg) {
-                console.log(data);
+                setMsgs(msgs => isMsg ? [...msgs, data]: msgs);
             }
-            setMsgs(msgs => isMsg ? [...msgs, data]: msgs);
         };
     }, []);
 
-    console.log(state)
-
     return <div className="card bg-dark mt-4">
-        <div className="card-header">
-            <div className="card-title">
-                <h3 className="card-label">Chat with friends</h3>
-            </div>
-        </div>
+            <Header user={user} />
         <div className="card-body">
+            
             { 'IDLE' === state && 
                 <ConnectedUsers users={connectedUsers} onStartConv={onStartConv}/>
             }
-            <hr/>
-            <Msgs msgs={msgs} />
 
-            <hr />
-            {'CHAT' === state && <MsgForm onSubmit={onMessage}/>}
+            { 'CHAT' === state && 
+                <>
+                    <span className="close-conv" onClick={closeConv}>X</span>
+                    <Conversation chatWith={chatWith} msgs={msgs} onMessage={onMessage} />
+                </>
+            } 
         </div>
         <ToastContainer />
     </div>

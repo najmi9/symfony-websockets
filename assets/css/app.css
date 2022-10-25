@@ -2,3 +2,20 @@ body {
     background-color: black;
     color: white;
 }
+
+.close-conv {
+    position: absolute;
+    top: 90px;
+    right: 10px;
+    color: red;
+    background-color: aliceblue;
+    border-radius: 50%;
+    height: 22px;
+    width: 23px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.close-conv:hover {
+    background-color: aqua;
+}

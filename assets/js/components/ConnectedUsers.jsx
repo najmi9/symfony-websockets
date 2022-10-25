@@ -3,13 +3,16 @@ import React from "react";
 export default function ConnectedUsers({users, onStartConv}) {
 
     return <div className="users">
-        <h3>Connected users:</h3>
+        <h3>Online users:</h3>
         {users.map(user => <div key={user.id}>
-            <div className="text-center bg-secondary">
-                <img src={`https://randomuser.me/api/portraits/men/${user.id}.jpg`} alt="Man" width={80} height={80} className="rounded-circle" />
+            <div className="text-center">
+                <img src={user.avatar} alt="Man" width={60} height={60} className="rounded-circle" />
                 <br/>
-                <button className="btn btn-light btn-sm" onClick={() => onStartConv(user)}>{ user.username }</button>
+                <button className="btn text-light btn-sm" onClick={() => onStartConv(user)}>{ user.username }</button>
             </div>
         </div>)}
+        {!users.length && <h6 className="text-center text-warning">
+            No user online
+        </h6>}
     </div>
 }

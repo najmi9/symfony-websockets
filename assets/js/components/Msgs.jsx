@@ -2,7 +2,6 @@ import React from "react"
 
 export default function Msgs({msgs}) {
     return <div>
-        <h3>Msgs</h3>
         {msgs.map(msg => (
             <Msg msg={msg} key={Math.random()} />
         ))}
