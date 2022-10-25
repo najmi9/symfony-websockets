@@ -6,14 +6,15 @@ namespace App\Service;
 
 use Ratchet\ConnectionInterface;
 use Ratchet\MessageComponentInterface;
+use UnexpectedValueException;
 
 class Chat implements MessageComponentInterface
 {
-    private const JOIN = 'USER_JOINED';
+    private const USER_JOINED = 'USER_JOINED';
 
-    private const MSG = 'NEW_MESSAGE';
+    private const NEW_MESSAGE = 'NEW_MESSAGE';
 
-    private const CONV = 'NEW_CONVERSATION';
+    private const NEW_CONVERSATION = 'NEW_CONVERSATION';
 
     protected array $clients;
 
@@ -32,29 +33,44 @@ class Chat implements MessageComponentInterface
     {
         $data = json_decode($msg, true);
 
-        if (self::JOIN === $data['type']) {
-            foreach ($this->clients as $userId => $client) {
-                $pushMessage = [
-                    'user' => $data['user'],
-                    'type' => self::JOIN,
-                    'msg' => 'push user'
-                ];
-                
-                $client->send(json_encode($pushMessage));
-            }
+        $type = $data['type'] ?? null;
 
-            $this->clients["{$data['user']['id']}"] = $from;
+        if (null === $type) {
+            throw new UnexpectedValueException('"type" required in the message body');
         }
 
-        if (self::MSG === $data['type']) {
-            $client = $this->clients["{$data['to']['id']}"];
+        switch ($type) {
+            case self::USER_JOINED:
+                foreach ($this->clients as $userId => $client) {
+                    $pushMessage = [
+                        'user' => $data['user'],
+                        'type' => self::USER_JOINED,
+                        'msg' => 'push user',
+                    ];
+                    $client->send(json_encode($pushMessage));
+                }
 
-            $client->send($msg);
-        }
+                $this->clients["{$data['user']['id']}"] = $from;
+            case self::NEW_MESSAGE:
+                $sendTo = $data['to']['id'] ?? null;
+                $client = $this->clients["{$sendTo}"] ?? null;
 
-        if (self::CONV === $data['type']) {
-            $client = $this->clients["{$data['participant']['id']}"];
-            $client->send($msg);
+                if (null === $client) {
+                    throw new UnexpectedValueException("participant with ID {$sendTo} does not exists");
+                }
+
+                $client->send($msg);
+            case self::NEW_CONVERSATION:
+                $participant = $data['participant']['id'] ?? null;
+                $client = $this->clients["{$participant}"] ?? null;
+
+                if (null === $client) {
+                    throw new UnexpectedValueException("participant with ID {$participant} does not exists");
+                }
+
+                $client->send($msg);
+            default:
+                throw new UnexpectedValueException("Unexpected type '{$type}'", 1);
         }
     }
 
