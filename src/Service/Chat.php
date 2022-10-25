@@ -15,7 +15,12 @@ class Chat implements MessageComponentInterface
 
     private const PUSH = 'push';
 
+    private const CONV = 'NEW_CONVERSATION';
+
+
     protected array $clients;
+
+    private array $conversations = [];
 
     public function __construct()
     {
@@ -54,9 +59,21 @@ class Chat implements MessageComponentInterface
         }
 
         if (self::MSG === $data['type']) {
+            // $client = $this->clients[$data['to']['id']];
+
             foreach ($this->clients as $id => $client) {
                 if ($from !== $client && $id == $data['to']['id']) {
                     dump('send message to ' . $data['user']['username']);
+                    $client->send($msg);
+                }
+            }
+        }
+
+        if (self::CONV === $data['type']) {
+            $this->conversations[] = $data;
+
+            foreach ($this->clients as $id => $client) {
+                if ($from !== $client && $id == $data['participant']['id']) {
                     $client->send($msg);
                 }
             }
