@@ -8,57 +8,39 @@ import { notify } from "./services/notify";
 import { WS_URL } from "../config";
 
 export default function App() {
-    const conn = new WebSocket(WS_URL);
+    const ws = new WebSocket(WS_URL);
 
-    const JOIN = 'join';
-    const PUSH = 'push';
-    const MSG = 'msg';
+    const JOIN = 'USER_JOINED';
+    const MSG = 'NEW_MESSAGE';
     const CONV = 'NEW_CONVERSATION';
 
     const [connectedUsers, setConnectedUsers] = useState([]);
 
     const [state, setState] = useState('IDLE');
 
-    const [convs, setConvs] = useState([]);
+    const [currentConversation, setCurrentConversation] = useState({});
 
-    const [conv, setConversation] = useState({});
+    const chatWith = currentConversation.participant;
 
-    const onStartConv = (participant) => {
+    const onUserStartConversation = (participant) => {
         setState('CHAT');
 
-        const alreadyExists = convs.filter(
-            c => c.creator.id === user.id && c.participant.id === participant.id
-        );
-
-        let conversation = null;
-
-        if (alreadyExists.length > 0) {
-            conversation = alreadyExists[0];
+        const conversation = {
+            id: `${Math.random()}`,
+            creator: user,
+            participant: participant,
+            msgs: [],
         }
 
-       if (null === conversation) {
-            conversation = {
-                id: `${Math.random()}`,
-                creator: user,
-                participant: participant,
-                msgs: [],
-            }
-            setConvs(items => [...items, conversation]);
-       }
+        setCurrentConversation(c => ({...conversation, ...c}));
 
-       setConversation(c => ({...conversation, ...c}));
-
-       conversation.type = CONV;
-
-       conn.send(JSON.stringify(conversation));
+        conversation.type = CONV;
+        ws.send(JSON.stringify(conversation));
     }
 
-    const closeConv = () => {
+    const onUserCloseConversation = () => {
         setState('IDLE')  
     }
-
-    const chatWith = conv.participant;
-
     const onCreatorSubmitMessage = e => {
         const form = Object.fromEntries(new FormData(e.target));
 
@@ -69,29 +51,31 @@ export default function App() {
             type: MSG,
         };
 
-        conn.send(JSON.stringify(sendMessage));
+        ws.send(JSON.stringify(sendMessage));
 
         sendMessage.me = true;
 
-        setConversation(c => ({...c, msgs: [...c.msgs, sendMessage]}));
+        setCurrentConversation(c => ({...c, msgs: [...c.msgs, sendMessage]}));
     }
 
     useEffect(() => {
-        conn.onopen = function () {
-            conn.send(JSON.stringify({user: user, type: JOIN}));
+        ws.onopen = function () {
+            ws.send(JSON.stringify({user: user, type: JOIN}));
         };
 
-        conn.onmessage = function (e) {
+        ws.onmessage = function (e) {
             const data = JSON.parse(e.data);
-            const isPush = PUSH === data.type && data.user.id !== user.id;
+            const isPush = JOIN === data.type && data.user.id !== user.id;
+            const isUserAlreadyJoined = connectedUsers.filter(u => u.user.id === data.user.id).length > 0;
 
-            if (isPush) {
+            if (isPush && !isUserAlreadyJoined) {
                 setConnectedUsers(cu => [...cu, data.user]);
                 return
             }
-
+            
             if (CONV === data.type) {
                 const isUserExists = connectedUsers.filter(cu => cu.id === data.creator.id);
+                
                 if (0 === isUserExists.length) {
                     setConnectedUsers(cu =>[data.creator, ...cu]);
                 }
@@ -106,7 +90,7 @@ export default function App() {
             }
             
             if (MSG === data.type) {
-                setConversation(c => ({...c, msgs: [...(c.msgs || []), data]}));
+                setCurrentConversation(c => ({...c, msgs: [...(c.msgs || []), data]}));
                 notify(
                     `${data.user.username} send you a message`,
                     data.msg,
@@ -124,18 +108,18 @@ export default function App() {
             { 'IDLE' === state && 
                 <ConnectedUsers
                 users={connectedUsers} 
-                onStartConv={onStartConv}/>
+                onUserStartConversation={onUserStartConversation}/>
             }
 
             { 'CHAT' === state && 
                 <>
-                    <span className="close-conv" onClick={closeConv}>X</span>
+                    <span className="close-conv" onClick={onUserCloseConversation}>X</span>
                     <p className="text-center">
                         <img src={chatWith.avatar} alt={chatWith.username} width={60} height={60} className="rounded-circle"/>
                         <br/> Chat with <b className="badge bg-success">{chatWith.username}</b>
                     </p>
                     <hr/>
-                    <Msgs msgs={conv.msgs} />
+                    <Msgs msgs={currentConversation.msgs} />
                     <hr/>
                     <MsgForm onSubmit={onCreatorSubmitMessage}/>
                 </>

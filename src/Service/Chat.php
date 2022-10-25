@@ -9,18 +9,13 @@ use Ratchet\MessageComponentInterface;
 
 class Chat implements MessageComponentInterface
 {
-    private const JOIN = 'join';
+    private const JOIN = 'USER_JOINED';
 
-    private const MSG = 'msg';
-
-    private const PUSH = 'push';
+    private const MSG = 'NEW_MESSAGE';
 
     private const CONV = 'NEW_CONVERSATION';
 
-
     protected array $clients;
-
-    private array $conversations = [];
 
     public function __construct()
     {
@@ -35,48 +30,31 @@ class Chat implements MessageComponentInterface
 
     public function onMessage(ConnectionInterface $from, $msg)
     {
-        
         $data = json_decode($msg, true);
 
         if (self::JOIN === $data['type']) {
-            // check if already exists
-            // the user should be validated
-    
             foreach ($this->clients as $userId => $client) {
                 $pushMessage = [
                     'user' => $data['user'],
-                    'type' => self::PUSH,
+                    'type' => self::JOIN,
                     'msg' => 'push user'
                 ];
+                
                 $client->send(json_encode($pushMessage));
-
             }
-            $this->clients[$data['user']['id']] = $from;
 
-           /*  $alreadyExists = $this->clients[$data['user']['id']] ?? null;
-            if (null === $alreadyExists) {
-            } */
+            $this->clients["{$data['user']['id']}"] = $from;
         }
 
         if (self::MSG === $data['type']) {
-            // $client = $this->clients[$data['to']['id']];
+            $client = $this->clients["{$data['to']['id']}"];
 
-            foreach ($this->clients as $id => $client) {
-                if ($from !== $client && $id == $data['to']['id']) {
-                    dump('send message to ' . $data['user']['username']);
-                    $client->send($msg);
-                }
-            }
+            $client->send($msg);
         }
 
         if (self::CONV === $data['type']) {
-            $this->conversations[] = $data;
-
-            foreach ($this->clients as $id => $client) {
-                if ($from !== $client && $id == $data['participant']['id']) {
-                    $client->send($msg);
-                }
-            }
+            $client = $this->clients["{$data['participant']['id']}"];
+            $client->send($msg);
         }
     }
 
